@@ -6,8 +6,20 @@ license = "MIT"
 description = "The fortress that was never taken in battle. A minimalistic, security-first web server."
 repository = "https://github.com/pashaproton/sich"
 
-# No dependencies yet. The dependency budget is 15 crates; each addition
-# requires a one-line justification in SPEC.md §5.
+# No dependencies yet. Dependency budget: 15 crates. Each addition requires
+# a one-line justification in SPEC.md §5.
+
+[lib]
+name = "sich"
+path = "src/lib.rs"
+
+[[bin]]
+name = "sich"
+path = "src/main.rs"
+
+# main.rs: argv parsing, config load, privilege drop, then hands off to the
+# library. All logic lives in lib.rs / lib modules so tests and fuzz targets
+# link against the library, not the binary.
 
 [lints.rust]
 unsafe_code = "forbid"
