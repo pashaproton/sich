@@ -1,0 +1,14 @@
+[package]
+name = "sich"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "The fortress that was never taken in battle. A minimalistic, security-first web server."
+repository = "https://github.com/pashaproton/sich"
+
+# No dependencies yet. The dependency budget is 15 crates; each addition
+# requires a one-line justification in SPEC.md §5.
+
+[lints.rust]
+unsafe_code = "forbid"
+warnings = "deny"

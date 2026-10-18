@@ -1,0 +1,47 @@
+# Sich configuration.
+#
+# EVERYTHING BELOW IS DISABLED. Uncomment blocks only when you want them.
+# Sich starts with zero open sockets by default. Fail-closed: an error in
+# this file prevents startup; unknown keys prevent startup.
+#
+# A listener: one bind address, one protocol. Nothing exists until you
+# uncomment it.
+#
+# [[listener]]
+# bind = "127.0.0.1:8080"
+# protocol = "http"
+#
+# A site: a hostname routed on a listener, serving static files or
+# proxying to a local upstream. Exactly one of `root` or `upstream`.
+#
+# [sites.example-com]
+# hostname = "example.com"
+# listener = "127.0.0.1:8080"
+# root = "/var/www/example.com"
+#
+# [sites.website]
+# hostname = "website.example.com"
+# listener = "127.0.0.1:8080"
+# upstream = "127.0.0.1:3000"
+#
+# HTTPS: TLS is opt-in per listener, explicit cert/key paths. ACME comes
+# in M4, not before.
+#
+# [[listener]]
+# bind = "0.0.0.0:443"
+# protocol = "https"
+# cert = "/etc/sich/tls/example.com.crt"
+# key = "/etc/sich/tls/example.com.key"
+#
+# Hard caps (tunable, never disableable):
+#
+# [limits]
+# max_connections = 256
+# max_header_bytes = 8192
+# max_body_bytes = 1048576
+# idle_timeout_secs = 30
+#
+# Access log: opt-in, explicit path.
+#
+# [log]
+# access = "/var/log/sich/access.log"
