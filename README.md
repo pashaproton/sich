@@ -19,7 +19,23 @@ upstreams over HTTP and HTTPS.
 
 ## Status
 
-M0 (specification) complete. See [SPEC.md](SPEC.md). No production code yet.
+- M0 (spec, repo skeleton) is complete.
+- M1 is in progress:
+  - **Done:**
+    - config model with fail-closed validation:
+      - unknown keys
+      - duplicate hostnames
+      - https-without-cert
+      - missing root/upstream are
+      - startup errors
+    - HTTP/1.1 request-line parser with bounded header reading
+    - percent-decoder and path resolver that refuse traversal before touching the filesystem.
+  - **In progress:**
+    - listener binding (only config-listened addresses)
+    - static file serving
+    - graceful shutdown
+
+See [SPEC.md](SPEC.md) for the full specification and milestones.
 
 ## License
 
