@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
@@ -58,7 +60,7 @@ impl Default for Limits {
         Limits {
             max_connections: 256,
             max_header_bytes: 8192,
-            max_body_bytes: 1_048_576, // 1 Mb
+            max_body_bytes: 1_048_576, // 1 MiB
             idle_timeout_secs: 30,
         }
     }

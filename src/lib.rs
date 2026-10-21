@@ -1,11 +1,16 @@
+#![forbid(unsafe_code)]
+
 use std::path::{Path, PathBuf};
 
 use crate::model::{
     Config, ConfigError, Limits, PathError, Protocol, Request, RequestParseError, Routing, Site,
 };
 
-mod model;
+pub mod model;
 
+/// # Errors
+///
+/// Will return `Err` if the config is invalid or cannot be parsed or validated.
 pub fn load_config(input: &str) -> Result<Config, ConfigError> {
     let config: Config = toml::from_str(input)?;
     validate(&config)?;
@@ -53,6 +58,9 @@ fn validate(config: &Config) -> Result<(), ConfigError> {
     Ok(())
 }
 
+/// # Errors
+///
+/// Will return `Err` if the routing is invalid or cannot be parsed or validated.
 pub fn build_routing(config: &Config) -> Result<Routing, ConfigError> {
     let mut routing = Routing {
         sites: config.sites.clone(),
@@ -66,6 +74,7 @@ pub fn build_routing(config: &Config) -> Result<Routing, ConfigError> {
     Ok(routing)
 }
 
+#[must_use]
 pub fn route<'a>(routing: &'a Routing, listener: &str, host: &str) -> Option<&'a Site> {
     routing
         .routes
@@ -74,6 +83,9 @@ pub fn route<'a>(routing: &'a Routing, listener: &str, host: &str) -> Option<&'a
         .map(|(_, _, idx)| &routing.sites[*idx])
 }
 
+/// # Errors
+///
+/// Will return `Err` if path not found, traversal or outside root.
 pub fn resolve_path(site: &Site, request_path: &str) -> Result<PathBuf, PathError> {
     let root = site.root.as_ref().ok_or(PathError::NotFound)?;
 
@@ -140,6 +152,9 @@ fn hex_val(b: u8) -> Option<u8> {
     }
 }
 
+/// # Errors
+///
+/// Will return `Err` if the request is malformed or exceeds the header size limits.
 pub fn parse_request(buf: &[u8], limits: &Limits) -> Result<Option<Request>, RequestParseError> {
     if buf.len() > limits.max_header_bytes {
         return Err(RequestParseError::HeaderTooLarge);

@@ -7,7 +7,7 @@
 # A listener: one bind address, one protocol. Nothing exists until you
 # uncomment it.
 #
-# [[listener]]
+# [[listeners]]
 # bind = "127.0.0.1:8080"
 # protocol = "http"
 #
