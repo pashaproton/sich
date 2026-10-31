@@ -1,47 +1,177 @@
-# Sich configuration.
+# ============================================================
+# Sich configuration
+# ============================================================
 #
-# EVERYTHING BELOW IS DISABLED. Uncomment blocks only when you want them.
-# Sich starts with zero open sockets by default. Fail-closed: an error in
-# this file prevents startup; unknown keys prevent startup.
+# INV-2 (closed by default): this file as shipped opens ZERO sockets.
+# Nothing listens, nothing accepts, nothing answers. Every listener
+# below is commented out; every socket is something you typed on purpose.
 #
-# A listener: one bind address, one protocol. Nothing exists until you
-# uncomment it.
+# INV-3 (fail closed): an unknown key, a bad value, an https listener
+# without cert+key, a site with both or neither of root/upstream, or a
+# listener with no sites is a startup error. The server refuses to run
+# rather than run misconfigured.
+#
+# Run it explicitly:  sich --config /etc/sich/default.toml
+# A missing --config is an error, never a guess.
+
+# ------------------------------------------------------------
+# LISTENERS
+#
+# A listener is a socket: one bind address, one protocol, one set of
+# TLS material. Sites live INSIDE listeners, so a site cannot refer to
+# a socket that does not exist, and there is no bind string to mistype.
+#
+# [[listeners]] is an array of tables: repeat the block per address.
+#
+#   bind     — "IP:port". Required. This is the socket Sich opens.
+#              There is no default address and no loopback special
+#              case: if it is not written here, it does not exist.
+#   protocol — "http" or "https". Required. Nothing else is accepted.
+#   cert     — PEM certificate chain path. Required for https,
+#              rejected for http.
+#   key      — PEM private key path. Required for https, rejected
+#              for http.
+#   sites    — one or more [[listeners.sites]] blocks. A listener with
+#              no sites can only close connections, so it is a startup
+#              error, not a warning.
+# ------------------------------------------------------------
+
+# ------------------------------------------------------------
+# SITES
+#
+# A site is a hostname routed on its parent listener. Hostnames are
+# exact, case-insensitive matches against the Host header: no
+# wildcards, no suffix matching. On listener 0.0.0.0:443,
+# "example.com" does NOT match "www.example.com" — declare it.
+#
+#   hostname — required. The exact Host value, lowercase.
+#   root     — directory to serve static files from.
+#   upstream — "host:port" to reverse-proxy to.
+#
+# Exactly one of root | upstream is required per site.
+# Two sites with the same hostname on the SAME listener is a startup
+# error. The same hostname on two different listeners is legal.
+#
+# A request whose Host matches no site on the listener it arrived at
+# is CLOSED with no response at all: no 421, no default site, no
+# catch-all, nothing that confirms the server exists (decision D2).
+# ------------------------------------------------------------
+
+# ------------------------------------------------------------
+# LIMITS
+#
+# Hard caps, tunable, never disableable (INV-4). Every value below is
+# the default: omit the block and you get exactly these numbers.
+#
+#   max_connections   — concurrent connections, SERVER-WIDE (shared
+#                       across every listener, not per listener). At
+#                       the cap, new connections wait in the kernel
+#                       listen backlog instead of consuming a socket,
+#                       a task, or memory.
+#   max_header_bytes  — cap on the whole request head: request line +
+#                       headers + the terminating CRLFCRLF. Exceeding
+#                       it closes the connection; no 431, no partial
+#                       parse.
+#   max_body_bytes    — cap on REQUEST bodies. 1048576 = 2^20 = 1 MiB
+#                       exactly. It does not cap response bodies: a
+#                       10 GB file under `root` streams at disk speed.
+#   idle_timeout_secs — deadline on each individual read. A client that
+#                       connects and sends nothing, or stalls halfway
+#                       through its headers, is dropped after this.
+#                       This is the slowloris guard. Never 0.
+# ------------------------------------------------------------
+
+# ------------------------------------------------------------
+# ACCESS LOG
+#
+# Opt-in. Absent means no access log at all: Sich writes nothing to
+# your disk unless told to.
+#
+#   access — path to the access log file. Must be writable by the
+#            user Sich runs as, or startup fails.
+#
+# NOTE: M1 does not implement the writer. Until it does, a [log]
+# block is refused at startup rather than silently ignored — an
+# operator who believes requests are being recorded, when they are
+# not, is worse off than one who gets an error.
+# ------------------------------------------------------------
+
+
+# ============================================================
+# EXAMPLES — uncomment a whole block, it validates as written
+# ============================================================
+
+# --- 1. One HTTP socket, one static site ---
 #
 # [[listeners]]
-# bind = "127.0.0.1:8080"
+# bind = "0.0.0.0:80"
 # protocol = "http"
 #
-# A site: a hostname routed on a listener, serving static files or
-# proxying to a local upstream. Exactly one of `root` or `upstream`.
+#   [[listeners.sites]]
+#   hostname = "example.com"
+#   root = "/var/www/example.com"
+
+
+# --- 2. One socket, several hostnames, mixed static and proxied ---
 #
-# [sites.example-com]
-# hostname = "example.com"
-# listener = "127.0.0.1:8080"
-# root = "/var/www/example.com"
+# [[listeners]]
+# bind = "0.0.0.0:80"
+# protocol = "http"
 #
-# [sites.website]
-# hostname = "website.example.com"
-# listener = "127.0.0.1:8080"
-# upstream = "127.0.0.1:3000"
+#   [[listeners.sites]]
+#   hostname = "example.com"
+#   root = "/var/www/example.com"
 #
-# HTTPS: TLS is opt-in per listener, explicit cert/key paths. ACME comes
-# in M4, not before.
+#   [[listeners.sites]]
+#   hostname = "www.example.com"
+#   root = "/var/www/example.com"
 #
-# [[listener]]
+#   [[listeners.sites]]
+#   hostname = "app.example.com"
+#   upstream = "127.0.0.1:3000"
+
+
+# --- 3. HTTPS: TLS material stated once per socket ---
+#
+# [[listeners]]
 # bind = "0.0.0.0:443"
 # protocol = "https"
 # cert = "/etc/sich/tls/example.com.crt"
-# key = "/etc/sich/tls/example.com.key"
+# key  = "/etc/sich/tls/example.com.key"
 #
-# Hard caps (tunable, never disableable):
+#   [[listeners.sites]]
+#   hostname = "example.com"
+#   root = "/var/www/example.com"
+
+
+# --- 4. The same hostname on two sockets (legal: two listeners) ---
+#
+# [[listeners]]
+# bind = "0.0.0.0:80"
+# protocol = "http"
+#
+#   [[listeners.sites]]
+#   hostname = "example.com"
+#   root = "/var/www/example.com"
+#
+# [[listeners]]
+# bind = "0.0.0.0:443"
+# protocol = "https"
+# cert = "/etc/sich/tls/example.com.crt"
+# key  = "/etc/sich/tls/example.com.key"
+#
+#   [[listeners.sites]]
+#   hostname = "example.com"
+#   root = "/var/www/example.com"
+
+
+# --- 5. Overriding the defaults ---
 #
 # [limits]
-# max_connections = 256
+# max_connections = 512
 # max_header_bytes = 8192
 # max_body_bytes = 1048576
 # idle_timeout_secs = 30
-#
-# Access log: opt-in, explicit path.
 #
 # [log]
 # access = "/var/log/sich/access.log"

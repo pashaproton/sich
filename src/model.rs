@@ -17,8 +17,6 @@ pub struct Config {
     #[serde(default)]
     pub listeners: Vec<Listener>,
     #[serde(default)]
-    pub sites: Vec<Site>,
-    #[serde(default)]
     pub limits: Limits,
     #[serde(default)]
     pub log: Option<Log>,
@@ -33,13 +31,14 @@ pub struct Listener {
     pub cert: Option<String>,
     #[serde(default)]
     pub key: Option<String>,
+    #[serde(default)]
+    pub sites: Vec<Site>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Site {
     pub hostname: String,
-    pub listener: String,
     #[serde(default)]
     pub root: Option<String>,
     #[serde(default)]
@@ -49,7 +48,7 @@ pub struct Site {
 #[derive(Debug, Deserialize, PartialEq, Eq, Clone, Copy)]
 #[serde(default, deny_unknown_fields)]
 pub struct Limits {
-    pub max_connections: u32,
+    pub max_connections: usize,
     pub max_header_bytes: usize,
     pub max_body_bytes: usize,
     pub idle_timeout_secs: u64,
@@ -76,6 +75,7 @@ pub struct Log {
 pub struct Request {
     pub method: String,
     pub path: String,
+    pub headers: Vec<(String, String)>,
     pub major: u8,
     pub minor: u8,
 }
@@ -133,8 +133,45 @@ impl fmt::Display for PathError {
 
 impl std::error::Error for PathError {}
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Routing {
     pub sites: Vec<Site>,
-    pub routes: Vec<(String, String, usize)>,
+    pub routes: Vec<(String, usize)>,
+}
+
+#[derive(Debug)]
+pub enum ServeError {
+    Config(ConfigError),
+    Io(std::io::Error),
+    JoinError(tokio::task::JoinError),
+}
+
+impl fmt::Display for ServeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ServeError::Config(e) => write!(f, "{e}"),
+            ServeError::Io(e) => write!(f, "io error: {e}"),
+            ServeError::JoinError(e) => write!(f, "task join error: {e}"),
+        }
+    }
+}
+
+impl std::error::Error for ServeError {}
+
+impl From<ConfigError> for ServeError {
+    fn from(e: ConfigError) -> Self {
+        ServeError::Config(e)
+    }
+}
+
+impl From<std::io::Error> for ServeError {
+    fn from(e: std::io::Error) -> Self {
+        ServeError::Io(e)
+    }
+}
+
+impl From<tokio::task::JoinError> for ServeError {
+    fn from(e: tokio::task::JoinError) -> Self {
+        ServeError::JoinError(e)
+    }
 }

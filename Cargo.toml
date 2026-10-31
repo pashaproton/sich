@@ -27,4 +27,5 @@ warnings = "deny"
 
 [dependencies]
 serde = { version = "1.0.229", features = ["derive"] }
+tokio = { version = "1.54.1", features = ["full"] }
 toml = { version = "1.1.8", features = ["serde"] }
