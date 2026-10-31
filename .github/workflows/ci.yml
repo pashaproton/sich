@@ -11,3 +11,39 @@ jobs:
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test --all-targets
+
+  mutants:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+              ~/.cargo/registry
+              ~/.cargo/git
+              ~/.cargo/bin
+              target
+          key: ${{ runner.os }}-mutants-${{ hashFiles('Cargo.lock') }}
+      - run: |
+            if ! command -v cargo-mutants &> /dev/null; then
+              cargo install --locked cargo-mutants
+            else
+              echo "cargo-mutants already cached"
+            fi
+      - run: cargo mutants --all-features -v2 --exclude file src/main.rs 2>&1 | tee mutants.log
+      - if: always()
+        run: |
+            {
+              echo "## Mutation testing result"
+              echo '```'
+              grep -E "MISSED|caught|unviable|default" mutants.log || true
+              echo '```'
+              tail -n 1 mutants.log
+            } >> "$GITHUB_STEP_SUMMARY"
+      - if: always()
+        run: |
+            if grep -q "MISSED" mutants.log; then
+              echo "::error::Missed mutants detected — see step summary"
+              exit 1
+            fi
