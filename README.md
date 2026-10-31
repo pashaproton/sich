@@ -30,8 +30,8 @@ upstreams over HTTP and HTTPS.
       - startup errors
     - HTTP/1.1 request-line parser with bounded header reading
     - percent-decoder and path resolver that refuse traversal before touching the filesystem.
-  - **In progress:**
     - listener binding (only config-listened addresses)
+  - **In progress:**
     - static file serving
     - graceful shutdown
 
