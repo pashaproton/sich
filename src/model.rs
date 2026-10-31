@@ -4,6 +4,8 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
+use crate::config::ConfigError;
+
 #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
 pub enum Protocol {
@@ -78,23 +80,6 @@ pub struct Request {
     pub headers: Vec<(String, String)>,
     pub major: u8,
     pub minor: u8,
-}
-
-#[derive(Debug)]
-pub struct ConfigError(pub String);
-
-impl fmt::Display for ConfigError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "config error: {}", self.0)
-    }
-}
-
-impl std::error::Error for ConfigError {}
-
-impl From<toml::de::Error> for ConfigError {
-    fn from(e: toml::de::Error) -> ConfigError {
-        ConfigError(e.to_string())
-    }
 }
 
 #[derive(Debug)]
