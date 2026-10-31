@@ -32,7 +32,7 @@ async fn main() -> ExitCode {
         }
     };
 
-    let config = match sich::load_config(&config_text) {
+    let config = match sich::config::load_config(&config_text) {
         Ok(config) => config,
         Err(e) => {
             eprintln!("sich [error]: {e}");
