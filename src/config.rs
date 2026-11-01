@@ -107,8 +107,9 @@ fn validate(config: &Config) -> Result<(), ConfigError> {
 
 #[cfg(test)]
 mod tests {
+    use crate::router::{build_routing, route};
+
     use super::*;
-    use crate::{build_routing, route};
 
     // M1-0 / INV-2: empty config is VALID and yields zero listeners.
     #[test]
