@@ -99,25 +99,6 @@ impl fmt::Display for RequestParseError {
 
 impl std::error::Error for RequestParseError {}
 
-#[derive(Debug)]
-pub enum PathError {
-    Traversal,
-    OutsideRoot,
-    NotFound,
-}
-
-impl fmt::Display for PathError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            PathError::Traversal => write!(f, "path traversal refused"),
-            PathError::OutsideRoot => write!(f, "path escapes document root"),
-            PathError::NotFound => write!(f, "not found"),
-        }
-    }
-}
-
-impl std::error::Error for PathError {}
-
 #[derive(Debug, Default, Clone)]
 pub struct Routing {
     pub sites: Vec<Site>,
