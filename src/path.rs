@@ -80,9 +80,12 @@ pub fn resolve_path(site: &Site, request_path: &str) -> Result<PathBuf, PathErro
         }
     }
 
-    let candidate = Path::new(root).join(decoded.trim_start_matches('/'));
+    let root = Path::new(root)
+        .canonicalize()
+        .map_err(|_| PathError::NotFound)?;
+    let candidate = root.join(decoded.trim_start_matches('/'));
     let canonical = candidate.canonicalize().map_err(|_| PathError::NotFound)?;
-    if !canonical.starts_with(Path::new(root)) {
+    if !canonical.starts_with(&root) {
         return Err(PathError::OutsideRoot);
     }
     Ok(canonical)
@@ -134,6 +137,24 @@ mod tests {
             resolve_path(&site, "/link/secret"),
             Err(PathError::OutsideRoot)
         ));
+
+        std::fs::remove_dir_all(&base).unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn file_inside_root_resolves() {
+        let base = std::env::temp_dir().join(format!("sich-ok-{}", std::process::id()));
+        let root = base.join("root");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("index.html"), b"hi").unwrap();
+
+        let site = Site {
+            hostname: "example.com".into(),
+            root: Some(root.to_string_lossy().into_owned()),
+            upstream: None,
+        };
+        assert!(resolve_path(&site, "/index.html").is_ok());
 
         std::fs::remove_dir_all(&base).unwrap();
     }
