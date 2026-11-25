@@ -3,13 +3,15 @@
 use std::{process::ExitCode, sync::Arc, time::Duration};
 
 use sich::{
+    files::{content_type, error_reply, head, write_error_status},
     http::parse_request,
     is_transient_accept_error,
-    model::{Limits, Listener, Routing, ServeError},
+    model::{Limits, Listener, Request, Routing, ServeError, Site, Status},
+    path::{resolve_path, PathError},
     router::{build_routing, host_header_of, route},
 };
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::TcpListener,
     sync::Semaphore,
     task::JoinSet,
@@ -153,13 +155,81 @@ async fn serve_listener(
                 return;
             };
 
-            let body = format!("hello from server\n{site:#?}");
-            let response = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                body.len(),
-                body
-            );
-            let _ = socket.write_all(response.as_bytes()).await;
+            let _ = serve_static(&mut socket, &request, site, &limits).await;
         });
+    }
+}
+
+pub async fn serve_static<S>(
+    socket: &mut S,
+    request: &Request,
+    site: &Site,
+    limits: &Limits,
+) -> Result<(), ServeError>
+where
+    S: AsyncWrite + Unpin,
+{
+    if request.method != "GET" && request.method != "HEAD" {
+        write_error_status(socket, Status::MethodNotAllowed).await?; // with Allow: GET, HEAD
+        return Ok(());
+    }
+
+    let path = request.path.split('?').next().unwrap_or("");
+
+    let mut file_path = match resolve_path(site, path) {
+        Ok(p) => p,
+        Err(e) => {
+            let status = error_reply(&e);
+            socket
+                .write_all(
+                    head(status, "text/plain", status.default_body().len() as u64).as_bytes(),
+                )
+                .await?;
+            socket.write_all(status.default_body().as_bytes()).await?;
+            return Err(ServeError::Path(e));
+        }
+    };
+
+    let mut meta = match tokio::fs::metadata(&file_path).await {
+        Ok(m) => m,
+        Err(e) => {
+            write_error_status(socket, Status::NotFound).await?;
+            return Err(ServeError::Io(e));
+        }
+    };
+
+    if meta.is_dir() {
+        file_path = file_path.join("index.html");
+        meta = match tokio::fs::metadata(&file_path).await {
+            Ok(m) => m,
+            Err(e) => {
+                write_error_status(socket, Status::NotFound).await?;
+                return Err(ServeError::Io(e));
+            }
+        };
+        if meta.is_dir() {
+            write_error_status(socket, Status::NotFound).await?;
+            return Err(ServeError::Path(PathError::NotFound));
+        }
+    }
+
+    let ctype = content_type(&file_path);
+    socket
+        .write_all(head(Status::Ok, ctype, meta.len()).as_bytes())
+        .await?;
+
+    if request.method == "HEAD" {
+        return Ok(());
+    }
+
+    let mut file = tokio::fs::File::open(&file_path).await?;
+    let mut buf = vec![0u8; 16 * 1024];
+    let idle = Duration::from_secs(limits.idle_timeout_secs);
+    loop {
+        let n = timeout(idle, file.read(&mut buf)).await??;
+        if n == 0 {
+            break Ok(());
+        }
+        timeout(idle, socket.write_all(&buf[..n])).await??;
     }
 }

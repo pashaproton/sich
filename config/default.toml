@@ -1,0 +1,7 @@
+[[listeners]]
+bind = "0.0.0.0:3000"
+protocol = "http"
+
+    [[listeners.sites]]
+    hostname = "localhost"
+    root = "/Users/pavloivanichenko/Projects/sich/static"

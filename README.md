@@ -31,8 +31,8 @@ upstreams over HTTP and HTTPS.
     - HTTP/1.1 request-line parser with bounded header reading
     - percent-decoder and path resolver that refuse traversal before touching the filesystem.
     - listener binding (only config-listened addresses)
-  - **In progress:**
     - static file serving
+  - **In progress:**
     - graceful shutdown
 
 See [SPEC.md](SPEC.md) for the full specification and milestones.
